@@ -74,8 +74,8 @@ def mecc_output(imo, df ):
             "avg_aecc": "Data Not Available",
             "Remarks": "Data Not Available"
         }
-        last_6_months = None
-        return out_dict, last_6_months
+        last_3_months = None
+        return out_dict, last_3_months
         
     df_mecc["Date"] = pd.to_datetime(df["Report Date"]).dt.strftime('%Y-%m-%d')
     df_mecc.sort_values("Date", inplace = True, ascending = True)
@@ -109,17 +109,17 @@ def mecc_output(imo, df ):
     current_rob_aecc = new_df["ROB AECC"].replace(0, pd.NA).dropna().iloc[-1] if not new_df["ROB AECC"].replace(0, pd.NA).dropna().empty else "Data Not Available"
 
 
-    #past 6 months consumption:
+    #past 3 months consumption:
     df_mecc["Months"] = df_mecc["Report Date"].dt.to_period('M').dt.to_timestamp()
     #total mecc sonsumption monthly:
     df_monthly = df_mecc.groupby("Months").agg(agg_functions).reset_index()
     df_monthly.sort_values("Months", inplace = True)
-    last_6_months = df_monthly.tail(7)
+    last_3_months = df_monthly.tail(4)
     current_month_year = pd.Timestamp(latest_date.strftime('%Y-%m-01'))
     # Filter rows where Month_year is not equal to the current month and year
-    df_filtered = last_6_months[last_6_months["Months"] != current_month_year]
+    df_filtered = last_3_months[last_3_months["Months"] != current_month_year]
     if df_filtered.empty:
-        last_6_months['Months'] = last_6_months["Months"].dt.strftime('%b-%Y')
+        last_3_months['Months'] = last_3_months["Months"].dt.strftime('%b-%Y')
 
         out_dict = {
             "Date": formatted_latest_date,
@@ -131,7 +131,7 @@ def mecc_output(imo, df ):
             "avg_aecc": "Cannot be calculated",
             "Remarks": "Incomplete data"
         }
-        return out_dict, last_6_months
+        return out_dict, last_3_months
 
 
     columns = find_columns_with_consecutive_zeros(df_filtered[["MECC consumption (LTRS)", "AECC consumption (LTRS)"]], threshold=3)
@@ -155,9 +155,9 @@ def mecc_output(imo, df ):
         remarks = "Incomplete data"
  
 
-    last_6_months['Months'] = last_6_months["Months"].dt.strftime('%b-%Y')
+    last_3_months['Months'] = last_3_months["Months"].dt.strftime('%b-%Y')
     date_range = f"01-{latest_date.strftime('%b')} to {latest_date.strftime('%d-%b %Y')}"
-    last_6_months.at[last_6_months.index[-1], 'Months'] = date_range
+    last_3_months.at[last_3_months.index[-1], 'Months'] = date_range
     out_dict = {
             "Date": formatted_latest_date,
             "current_mecc": current_consumption_mecc,
@@ -169,7 +169,7 @@ def mecc_output(imo, df ):
             "Remarks": remarks
         }
     
-    return out_dict, last_6_months
+    return out_dict, last_3_months
 
 
 def mecc_summary_main(json_input):
@@ -214,26 +214,25 @@ def markdown(out_,df,imo):
 | Months | MECC | AECC |
 | --- | --- | --- |
 '''
-    # Loop through the first 6 rows of the DataFrame and add them to the HTML table
+    # Loop through the first 3 rows of the DataFrame and add them to the HTML table
     for _, row in df.iterrows():
-        monthly_table += f'''| {row["Months"]} | {row["MECC consumption (LTRS)"]} | {row["AECC consumption (LTRS)"]} |\n'''
+        monthly_table += f'''| {row["Months"]} | {row["MECC consumption (LTRS)"]} | {row["AECC consumption (LTRS)"]} |\\n'''
 ###########    
 
-    
     
 
 
     if output["avg_mecc"] == "Cannot be calculated based on the data available" :
         cal_mecc = output["avg_mecc"]
     else:
-        cal_mecc = f'''$$\\text{{Average Monthly Consumption}} =\\frac{{ {df["MECC consumption (LTRS)"][:-1].sum()}\ Ltrs}}{{{len(df)-1}\ Months}} = {output["avg_mecc"]}$$'''
+        cal_mecc = f'''$$\\\\text{{Average Monthly Consumption}} =\\\\frac{{ {df["MECC consumption (LTRS)"][:-1].sum()}\\ Ltrs}}{{{len(df)-1}\\ Months}} = {output["avg_mecc"]}$$'''
 
     if output["avg_aecc"] == "Cannot be calculated based on the data available" :
         cal_aecc = output["avg_aecc"]
     else:
-        cal_aecc = f'''$$\\text{{Average Monthly Consumption}} =\\frac{{ {df["AECC consumption (LTRS)"][:-1].sum()}\ Ltrs}}{{{len(df)-1} \ Months}} = {output["avg_aecc"]}$$'''
+        cal_aecc = f'''$$\\\\text{{Average Monthly Consumption}} =\\\\frac{{ {df["AECC consumption (LTRS)"][:-1].sum()}\\ Ltrs}}{{{len(df)-1} \\ Months}} = {output["avg_aecc"]}$$'''
 
-    calculation = f'''$$\\text{{Average Monthly Consumption}} =\\frac{{\\text{{Total Consumption Over Months}}}}{{\\text{{Number of Months}}}} $$
+    calculation = f'''$$\\\\text{{Average Monthly Consumption}} =\\\\frac{{\\\\text{{Total Consumption Over Months}}}}{{\\\\text{{Number of Months}}}} $$
 - For MECC:  
 {cal_mecc}
 - For AECC:  
@@ -241,7 +240,7 @@ def markdown(out_,df,imo):
 
 #########
     out_str = f'''## MECC and AECC Consumption and ROB from Ship Palm consumption log <br><br> 
-**Date**: {output["Date"]} (Latest available Data)\n
+**Date**: {output["Date"]} (Latest available Data)\\n
 
 ### Quick Summary:  
 - **Current Consumption MECC** : {output["current_mecc"]}
@@ -265,15 +264,15 @@ The current consumption and Remaining On Board (ROB) data are summarized as foll
 | Current Consumption | {output["current_mecc"]} | {output["current_aecc"]} |
 | Current ROB | {output["rob_mecc"]} | {output["rob_aecc"]} |
 
-### Step 2: Monthly Consumption for Past 6 Months:
-We calculate the total monthly consumption for  the past 6 months by adding the daily consumptions.
+### Step 2: Monthly Consumption for Past 3 Months:
+We calculate the total monthly consumption for  the past 3 months by adding the daily consumptions.
 {monthly_table}
 
 ### Step 3: Average Monthly Consumption:    
 We calculate the average monthly consumption based on the formula:
 {calculation}  
 Assumptions:
-- We consider the past 6 months (if available) excluding the current month
+- We consider the past 3 months (if available) excluding the current month
 
 ### Step 4: Logical Assumptions & Handling Special Cases:
 - If Consumption data is not available, we consider it as 0.
@@ -315,14 +314,14 @@ def plots_data(df_mecc):
  
     # Change the format of months to 'MMM-YYYY'
     df_mecc_monthly["Month"] = pd.to_datetime(df_mecc_monthly["Month"]).dt.strftime('%b-%Y')
-    # Get the latest 6 months' data
-    latest_6_months = df_mecc_monthly.tail(6)
+    # Get the latest 3 months' data
+    latest_3_months = df_mecc_monthly.tail(3)
         
     #Rob Trend:
     rob_trend_df = df_mecc_daily[["Date","ROB MECC","ROB AECC"]].copy()
     rob_trend_df.dropna(subset = ["ROB MECC","ROB AECC"], inplace = True)
     
-    return latest_6_months, rob_trend_df
+    return latest_3_months, rob_trend_df
 
 
 
@@ -595,10 +594,10 @@ for imo in tqdm(valid_imos):
     df_mecc.drop_duplicates(inplace = True)
     df_mecc.dropna(subset = "Report Date", inplace = True)
     df_mecc.sort_values("Report Date", inplace = True, ascending = True)
-    latest_6_months, rob_trend_df = plots_data(df_mecc)
+    latest_3_months, rob_trend_df = plots_data(df_mecc)
 
-    plot_1_json = plot_mecc_consumption_grouped(latest_6_months[["Month","MECC consumption (LTRS)","Steaming time (HRS)"]])
-    plot_2_json = plot_aecc_consumption_grouped(latest_6_months[["Month","AECC consumption (LTRS)","Steaming time (HRS)"]])
+    plot_1_json = plot_mecc_consumption_grouped(latest_3_months[["Month","MECC consumption (LTRS)","Steaming time (HRS)"]])
+    plot_2_json = plot_aecc_consumption_grouped(latest_3_months[["Month","AECC consumption (LTRS)","Steaming time (HRS)"]])
     plot_3_json = plot_rob(rob_trend_df)
 
                     
@@ -668,12 +667,12 @@ for imo in tqdm(empty_update):
     imo = int(imo)
     vesselName = vessel_id_df[vessel_id_df["imo"] == imo]["name"].values[0]
     #dev:
-    vesselinfo.update_one({ "questionNo": 36,"imo": int(imo)}, {'$set': {"answer":"## MECC and AECC Consumption and ROB from Ship Palm consumption log \n\n> Data Not Available",
+    vesselinfo.update_one({ "questionNo": 36,"imo": int(imo)}, {'$set': {"answer":"## MECC and AECC Consumption and ROB from Ship Palm consumption log \\n\\n> Data Not Available",
                                                                         "question" : "MECC and AECC Consumption and ROB from Ship Palm consumption log",
                                                                         "vesselName": vesselName,
                                                                         "detailedAnswer": "",
                                                                         'refreshDate' : datetime.now()}}, upsert = True)
-    vesselinfo_synergy.update_one({"questionNo" : 36, "imo" : imo},{"$set" : {"answer":"## MECC and AECC Consumption and ROB from Ship Palm consumption log \n\n> Data Not Available",
+    vesselinfo_synergy.update_one({"questionNo" : 36, "imo" : imo},{"$set" : {"answer":"## MECC and AECC Consumption and ROB from Ship Palm consumption log \\n\\n> Data Not Available",
                                                                         "question" : "MECC and AECC Consumption and ROB from Ship Palm consumption log",
                                                                         "vesselName": vesselName,
                                                                         "detailedAnswer": "",
